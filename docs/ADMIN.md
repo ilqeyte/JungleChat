@@ -97,13 +97,33 @@ Returning admins who already enrolled skip straight to the code prompt.
 ## Changing admin credentials (anytime, no redeploy)
 
 There is **no default password** — credentials are whatever you set at
-bootstrap. Everything below is done in the Supabase dashboard and takes effect
-immediately; the admin panel never needs rebuilding.
+bootstrap. All changes below are made from the Supabase dashboard's **SQL
+Editor** (or *Table Editor*) and take effect immediately; the admin panel never
+needs rebuilding. (These SQL methods always work regardless of dashboard
+version — the dashboard's *Authentication → Users* panel may also offer
+recovery-email actions, but only when the admin address is a real inbox.)
 
-- **Change the admin password (easiest).** Supabase dashboard →
-  *Authentication → Users* → click the admin user → **Update password** (or
-  *Send reset email* if the address is a real inbox). The new password works on
-  the next sign-in.
+> **Where "admin" lives:** the admin is an ordinary row under
+> *Authentication → Users* (e.g. `admin@yourdomain.com`). What makes that
+> account an admin is a matching row in `public.admin_roles` (see it in *Table
+> Editor → public → admin_roles*). There is no separate "Admin" section in the
+> Supabase dashboard — the admin panel itself is the Flutter web app in
+> `admin/` of this repo.
+
+- **Change the admin password (easiest).** Run in the SQL Editor with a strong
+  new password (existing TOTP enrollment is unaffected):
+
+  ```sql
+  update auth.users
+  set encrypted_password = crypt('NEW_PASSWORD', gen_salt('bf'))
+  where email = 'you@yourdomain.com';
+  ```
+
+  Alternatives: the *Authentication → Users* recovery-email action (real inbox
+  required), or the Auth Admin API —
+  `PUT https://<ref>.supabase.co/auth/v1/admin/users/<user-id>` with header
+  `apikey: <sb_secret_...>` and body `{"password": "NEW_PASSWORD"}`.
+
 - **Promote another user to admin.** SQL Editor:
 
   ```sql
@@ -120,11 +140,15 @@ immediately; the admin panel never needs rebuilding.
   );
   ```
 
-- **Lost the authenticator phone (TOTP).** Supabase dashboard →
-  *Authentication → Users* → admin user → *Factors* → delete the stale factor.
-  The next sign-in prompts for MFA enrollment again with a fresh QR code.
-  (Only do this from a trusted session — deleting the factor temporarily
-  weakens the second gate.)
+- **Lost the authenticator phone (TOTP).** Run in the SQL Editor — the next
+  sign-in prompts for MFA enrollment again with a fresh QR code. (Only do this
+  from a trusted session — it temporarily weakens the second gate.)
+
+  ```sql
+  delete from auth.mfa_factors
+  where user_id = (select id from auth.users where email = 'you@yourdomain.com');
+  ```
+
 - **Reset everything at once.** Bootstrap a brand-new admin (steps above, or
   `scripts/bootstrap_admin.py`), sign in once to verify, then delete the old
   auth user from *Authentication → Users*.
