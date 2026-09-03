@@ -94,6 +94,44 @@ a TOTP authenticator (Google Authenticator / Authy / 1Password) on first login.
 
 Returning admins who already enrolled skip straight to the code prompt.
 
+## Changing admin credentials (anytime, no redeploy)
+
+There is **no default password** — credentials are whatever you set at
+bootstrap. Everything below is done in the Supabase dashboard and takes effect
+immediately; the admin panel never needs rebuilding.
+
+- **Change the admin password (easiest).** Supabase dashboard →
+  *Authentication → Users* → click the admin user → **Update password** (or
+  *Send reset email* if the address is a real inbox). The new password works on
+  the next sign-in.
+- **Promote another user to admin.** SQL Editor:
+
+  ```sql
+  insert into public.admin_roles (user_id)
+  select id from auth.users where email = 'new-admin@yourdomain.com'
+  on conflict (user_id) do nothing;
+  ```
+
+- **Revoke an admin.** SQL Editor:
+
+  ```sql
+  delete from public.admin_roles where user_id = (
+    select id from auth.users where email = 'ex-admin@yourdomain.com'
+  );
+  ```
+
+- **Lost the authenticator phone (TOTP).** Supabase dashboard →
+  *Authentication → Users* → admin user → *Factors* → delete the stale factor.
+  The next sign-in prompts for MFA enrollment again with a fresh QR code.
+  (Only do this from a trusted session — deleting the factor temporarily
+  weakens the second gate.)
+- **Reset everything at once.** Bootstrap a brand-new admin (steps above, or
+  `scripts/bootstrap_admin.py`), sign in once to verify, then delete the old
+  auth user from *Authentication → Users*.
+
+> Deleting a user from `auth.users` does **not** remove their `admin_roles`
+> row automatically; run the revoke SQL above as well.
+
 ## Sections
 
 | Section     | What you can do                                                      |
