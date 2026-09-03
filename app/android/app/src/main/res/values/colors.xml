@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phase 7 (item #9): pure black. The adaptive icon background must match
+         the app theme so it doesn't show a lighter rounded-square mask. -->
+    <color name="ic_launcher_background">#000000</color>
+    <color name="launch_background">#000000</color>
+</resources>

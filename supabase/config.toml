@@ -1,0 +1,20 @@
+# Supabase CLI configuration.
+#
+# Only `project_id` is set, deliberately.
+#
+# The project ref is not a secret — it is already committed in
+# app/lib/core/config.dart as part of the public Supabase URL.
+#
+# NO [functions.*] SECTIONS ON PURPOSE.
+# Every edge function has a `verify_jwt` setting that lives in the hosted
+# project. Getting it wrong breaks production: set it to true on a function
+# that must be callable without a user JWT and it starts rejecting every
+# request; set it to false on a function that relies on gateway verification
+# and you have removed a security control.
+#
+# The current per-function settings have not been verified against the hosted
+# project, so they are not recorded here. Before the first CI-driven function
+# deploy, capture them with `supabase functions list` and add them explicitly.
+# Until then, CI deploys MIGRATIONS only — see
+# .github/workflows/supabase-deploy.yml.
+project_id = "odhwashpiqgicchbrjtd"

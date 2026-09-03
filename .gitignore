@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────
+# JungleChat — repository ignore rules
+# Keep secrets, native signing material, and build output OUT of git.
+# ─────────────────────────────────────────────────────────────────────────
+
+# Flutter / Dart build output
+**/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/*.iml
+**/*.android.gradle
+**/.android/
+**/.ios/
+**/.dart_tool/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Native signing material (CI injects these from encrypted secrets)
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision
+android/keystore.properties
+android/upload-keystore.jks
+android/app/key.properties
+ios/Runner/exportOptions.plist
+ios/**/exportOptions.plist
+
+# Supabase local CLI cache (not source of truth)
+supabase/.temp/
+**/supabase/.temp/
+
+# Logs
+*.log
+
+# Local reference / scratch material — NOT part of the distributed product.
+# (Original-product docs, reference CI scripts, and diagnostic one-offs live
+# here so they stay out of the white-label repo the buyer receives.)
+docs_ref/
+scripts_ref/
+.github_ref/
+diag_0027.py

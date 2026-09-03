@@ -1,0 +1,22 @@
+-- ============================================================================
+-- JUNGLECHAT — 0042_report_type_deletion_appeal.sql
+--
+-- Adds 'deletion_appeal' to public.report_type so a deletion appeal is a
+-- first-class report kind instead of being hidden inside 'other'.
+--
+-- WHY THIS IS ITS OWN MIGRATION
+-- ---------------------------------------------------------------------------
+-- PostgreSQL refuses to USE an enum value that was added in the SAME
+-- transaction that is still open. Supabase applies each migration file inside
+-- a transaction, so adding the value and creating the function that casts to
+-- it in one file would fail on first execution with
+--   "unsafe use of new value ... of enum type report_type".
+-- Splitting the two keeps each migration independently commit-safe.
+--
+-- ADDING A VALUE IS SAFE AND NON-DESTRUCTIVE: existing rows, the enum's sort
+-- order and every existing cast keep working. There is no supported way to
+-- REMOVE an enum value, so this is a one-way door — which is fine, the client
+-- (account_deleted_dialog.dart) already depends on this kind existing.
+-- ============================================================================
+
+alter type public.report_type add value if not exists 'deletion_appeal';

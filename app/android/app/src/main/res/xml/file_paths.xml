@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider paths for in-app updates.
+
+  Downloaded APKs live in the app's own external files directory
+  (getExternalStorageDirectory() -> /Android/data/<pkg>/files), which requires
+  NO storage permission on any Android version. We expose just the `updates`
+  subdirectory so the package installer can read one APK and nothing else.
+
+  Note: these are declared separately from open_filex's provider, which uses
+  its own authority (${applicationId}.fileProvider.com.crazecoder.openfile).
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-files-path name="updates" path="updates/" />
+    <external-path name="external_updates" path="Android/data/com.junglechat.app/files/updates/" />
+    <cache-path name="cache_updates" path="updates/" />
+</paths>

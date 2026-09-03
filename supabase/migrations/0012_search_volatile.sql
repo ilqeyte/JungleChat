@@ -1,0 +1,1 @@
+ -- Applied via MCP: search_animal_by_id recreated as VOLATILE (rate limiter writes).

@@ -1,0 +1,10 @@
+flutter_launcher_icons:
+  # Filename must match the on-disk name EXACTLY. CI builds on Linux, which is
+  # case-sensitive; Windows is not. A mismatch silently builds the wrong icon
+  # locally and fails (or resolves to nothing) on the runner.
+  image_path: "assets/icon/junglechat_logo.png"
+  android: "launcher_icon"
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icon/junglechat_logo.png"

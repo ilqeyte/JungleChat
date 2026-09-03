@@ -1,0 +1,9 @@
+{
+  "name": "JungleChat Admin",
+  "short_name": "JungleChat Admin",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0B",
+  "theme_color": "#0B0B0B",
+  "description": "JungleChat secure administration panel."
+}

@@ -1,0 +1,8 @@
+-- ============================================================================
+-- JUNGLECHAT - 0015_launch_scale.sql  (APPLIED TO PRODUCTION VIA MCP)
+-- CGNAT-aware rate limits: authenticated actions key on USER, not IP.
+-- Login/reset IP gates raised for shared-carrier headroom.
+-- ============================================================================
+-- Daily hygiene: notifications/security_events/rate buckets cleanup.
+-- (Applied via MCP: cleanup_old_data() + cron 'junglechat-cleanup' 40 4 * * *.
+--  Also removed: expire_temporary_rooms fn + its cron after rooms removal.)

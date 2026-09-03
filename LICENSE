@@ -1,0 +1,49 @@
+JungleChat — Software License
+==============================
+
+Copyright (c) 2026 JungleChat and its author. All rights reserved.
+
+This license covers JungleChat: the mobile application source code, the
+Flutter web admin panel, the Supabase backend (database migrations and Edge
+Functions), and the accompanying documentation.
+
+You are free to:
+  - use the software for any personal or commercial purpose;
+  - modify, re-theme, and rebrand it, including changing its name, icons,
+    colors, and package identifier;
+  - build and publish apps from it on app stores or anywhere else;
+  - sublicense and redistribute it, including selling products that contain
+    or are built from it.
+
+You may not:
+  - hold the author liable for any loss, damage, or claim arising from the
+    use or inability to use the software;
+  - misrepresent the software's origin if specifically asked who wrote it
+    (attribution is welcomed but never required).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+Third-party components keep their own licenses
+------------------------------------------------
+JungleChat builds on open-source software — Flutter, Dart, Supabase, Firebase,
+Google Mobile Ads, and the packages listed in app/pubspec.yaml and
+admin/pubspec.yaml. All of those are distributed under permissive licenses
+(BSD, MIT, or Apache 2.0). Their licenses travel with them and are not
+changed by this file.
+
+Your responsibilities when you enable external services
+-------------------------------------------------------
+If you turn on features that use an external service, you must also comply
+with that service's terms:
+  - Google AdMob and Firebase: Google's terms of service, including a published
+    privacy policy and ad-program policy compliance;
+  - Supabase: Supabase's terms of service for the project you host.
+The author of JungleChat is not a party to those agreements.
+
+This license is the complete agreement between you and the author regarding
+the software.

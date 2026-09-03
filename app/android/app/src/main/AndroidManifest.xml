@@ -1,0 +1,93 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- AdMob: required for Android 12+ advertising ID. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+    <!-- In-app updates: required to hand a downloaded APK to the package
+         installer. Special permission — the user grants it in system settings,
+         which MainActivity opens on demand. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <application
+        android:label="JungleChat"
+        android:name="${applicationName}"
+        android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:replace="android:label,android:networkSecurityConfig,android:allowBackup">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="junglechat" android:host="animal"/>
+            </intent-filter>
+        </activity>
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <!-- Defense-in-depth: never collect Firebase Analytics. The app does not
+             depend on firebase_analytics / crashlytics / performance_monitoring,
+             but this guarantees collection stays off even if a future dependency
+             pulls them in. (Phase 3 — telemetry privacy, IMPLEMENTATION_PLAN 3.3) -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <!-- AdMob application ID (TEST id). Must be a direct child of
+             <application> so the AdMob SDK can read it at startup. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
+        <!-- In-app updates: shares the downloaded APK with the Android package
+             installer as a content:// URI. Android 7+ rejects file:// URIs
+             shared across apps (FileUriExposedException), so the APK must go
+             through a FileProvider. Paths are declared in res/xml/file_paths.xml
+             and cover only the `updates/` subdirectory.
+             Authority is distinct from open_filex's provider to avoid a clash. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <!-- WorkManager auto-init crashes at process start on this device
+                 (WorkDatabase creation fails). Nothing in the app needs
+                 on-start WorkManager; anything that requires it initializes
+                 it on demand. -->
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+    </application>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
