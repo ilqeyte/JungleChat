@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
-"""One-time admin bootstrap for a JungleChat Supabase project.
+"""Bootstrap / reset the JungleChat admin account on a Supabase project.
 
-What it does (idempotent where possible):
-  1. Creates an admin auth user (if the email does not already exist).
-  2. Grants that user the admin role (insert into public.admin_roles).
+Verified against the 2026 Supabase platform:
+  - Auth users MUST be created through the Auth Admin API. Rows inserted
+    directly into ``auth.users`` via SQL are invisible to the auth service
+    and can never sign in. SQL-written password hashes are ignored too.
+  - The platform Management API no longer offers user creation.
 
-The admin_list_reports schema is owned exclusively by the SQL migrations under
-supabase/migrations and MUST NOT be altered by this script. (An older revision
-applied a migration that joined the dropped `rooms` table; that step is
-intentionally removed — the live function is the 7-column shape defined in
-migrations 0001-0313.)
+What it does:
+  1. Finds the auth user by email (creates it, pre-confirmed, if missing).
+  2. If the user already exists, resets its password to the one provided,
+     so the credentials you pass here are always valid afterwards.
+  3. Grants the admin role (insert into public.admin_roles, idempotent).
 
-The Supabase Personal Access Token is read from the environment
-(SUPABASE_ACCESS_TOKEN) and is NEVER hardcoded or printed back.
+Needs only the project URL and a secret key (sb_secret_... or the legacy
+service_role key) from Supabase dashboard -> Project Settings -> API Keys.
+The key is read from the environment and is never hardcoded or printed.
 
 Usage:
-  SUPABASE_ACCESS_TOKEN=xxx python3 scripts/bootstrap_admin.py \
-      --ref ndvdrpmrdifcakjbbbjy \
-      --email admin@junglechat.app \
+  SUPABASE_SECRET_KEY=sb_secret_... python3 scripts/bootstrap_admin.py \
+      --url https://your-project.supabase.co \
+      --email admin@yourdomain.com \
       --password 'strong-password-here'
 """
 import argparse
@@ -26,15 +29,15 @@ import os
 import sys
 import urllib.request
 
-API = "https://api.supabase.com/v1"
 
-
-def _req(token, method, url, body=None):
+def _req(key, method, url, body=None, prefer=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("apikey", key)
+    req.add_header("Authorization", f"Bearer {key}")
     req.add_header("Content-Type", "application/json")
-    req.add_header("apikey", token)
+    if prefer:
+        req.add_header("Prefer", prefer)
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             raw = r.read().decode()
@@ -48,50 +51,66 @@ def _req(token, method, url, body=None):
         return e.code, detail
 
 
+def _find_user(key, base, email):
+    """List auth users (paginated) and match the email client-side.
+
+    The ``filter`` query parameter is unreliable on the current platform
+    (it silently returns an empty list), so we paginate and compare here.
+    """
+    page = 1
+    while True:
+        st, body = _req(key, "GET",
+                        f"{base}/auth/v1/admin/users?per_page=100&page={page}")
+        if st >= 400:
+            sys.exit(f"listing users failed HTTP {st}: {body}")
+        users = (body or {}).get("users", [])
+        for u in users:
+            if (u.get("email") or "").lower() == email.lower():
+                return u
+        if len(users) < 100:
+            return None
+        page += 1
+
+
 def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--ref", required=True)
+    p = argparse.ArgumentParser(
+        description="Bootstrap or reset the JungleChat admin account.")
+    p.add_argument("--url", required=True,
+                   help="Project URL, e.g. https://xyz.supabase.co")
     p.add_argument("--email", required=True)
     p.add_argument("--password", required=True)
-    p.add_argument("--issuer", default="JungleChat")
     a = p.parse_args()
 
-    token = os.environ.get("SUPABASE_ACCESS_TOKEN")
-    if not token:
-        sys.exit("SUPABASE_ACCESS_TOKEN not set")
+    key = os.environ.get("SUPABASE_SECRET_KEY")
+    if not key:
+        sys.exit("SUPABASE_SECRET_KEY not set "
+                 "(Supabase dashboard -> Project Settings -> API Keys)")
+    base = a.url.rstrip("/")
 
-    # 1. Create admin auth user if missing.
-    st, body = _req(token, "GET",
-                    f"{API}/projects/{a.ref}/auth/users?filter=email.eq.{a.email}")
-    existing = body.get("users") if isinstance(body, dict) else None
+    existing = _find_user(key, base, a.email)
     if existing:
-        uid = existing[0]["id"]
-        print(f"[1] admin user already exists: {uid}")
-    else:
-        st, body = _req(token, "POST",
-                        f"{API}/projects/{a.ref}/auth/users",
-                        {
-                            "email": a.email,
-                            "password": a.password,
-                            "email_confirm": True,
-                            "user_metadata": {"app_meta": a.issuer},
-                        })
+        uid = existing["id"]
+        st, body = _req(key, "PUT", f"{base}/auth/v1/admin/users/{uid}",
+                        {"password": a.password})
         if st >= 400:
-            sys.exit(f"[1] create user failed HTTP {st}: {body}")
-        uid = body.get("id") or (body.get("data") or {}).get("id")
-        print(f"[1] created admin user: {uid}")
+            sys.exit(f"password reset failed HTTP {st}: {body}")
+        print(f"[1] existing user found; password reset: {uid}")
+    else:
+        st, body = _req(key, "POST", f"{base}/auth/v1/admin/users",
+                        {"email": a.email, "password": a.password,
+                         "email_confirm": True})
+        if st >= 400:
+            sys.exit(f"create user failed HTTP {st}: {body}")
+        uid = body["id"]
+        print(f"[1] admin user created (email confirmed): {uid}")
 
-    # 2. Grant admin role.
-    grant = (
-        "insert into public.admin_roles (user_id) "
-        f"select '{uid}'::uuid "
-        "on conflict (user_id) do nothing;"
-    )
-    st, _ = _req(token, "POST",
-                 f"{API}/projects/{a.ref}/database/query",
-                 {"query": grant})
-    print(f"[2] grant admin_roles -> HTTP {st}")
-    print("Done. Sign in at the admin panel with MFA.")
+    st, body = _req(key, "POST", f"{base}/rest/v1/admin_roles",
+                    {"user_id": uid}, prefer="resolution=ignore-duplicates")
+    if st >= 400:
+        sys.exit(f"grant failed HTTP {st}: {body}")
+    print("[2] admin role granted (idempotent).")
+    print("Done. Sign in at the admin panel; MFA (TOTP) enrollment is "
+          "prompted on first login.")
 
 
 if __name__ == "__main__":

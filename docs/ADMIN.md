@@ -64,9 +64,15 @@ firebase deploy
 The migrations create the `admin_roles` table but do **not** create an admin —
 that would hardcode a credential. You grant admin to an existing auth user.
 
+> **Never create auth users with SQL.** On the current Supabase platform the
+> auth service does not read rows inserted directly into `auth.users` — such
+> users can never sign in, and password hashes written via SQL are ignored.
+> Always use the dashboard's *Add user*, the script below, or the Auth Admin
+> API.
+
 1. **Create the admin auth account.** In the Supabase dashboard → *Authentication
-   → Users → Add user*, or have the owner sign up. Use a real email + strong
-   password. (Email confirmation can be skipped for an internal admin.)
+   → Users → Add user*. Use a real email + strong password. (Email confirmation
+   can be skipped for an internal admin.)
 2. **Grant the admin role.** Run this SQL in the Supabase dashboard → *SQL
    Editor* (replace the email):
 
@@ -78,6 +84,18 @@ that would hardcode a credential. You grant admin to an existing auth user.
 
 That's it. The user now signs in with email + password and is prompted to enroll
 a TOTP authenticator (Google Authenticator / Authy / 1Password) on first login.
+
+**Or do both steps with one command** — `scripts/bootstrap_admin.py` creates
+(or finds) the user, resets the password to the one you pass, and grants the
+role (idempotent). It needs the project URL and a secret key from
+*Project Settings → API Keys* (read from the environment, never hardcoded):
+
+```bash
+SUPABASE_SECRET_KEY=sb_secret_... python3 scripts/bootstrap_admin.py \
+    --url https://your-project.supabase.co \
+    --email admin@yourdomain.com \
+    --password 'strong-password-here'
+```
 
 > To grant more admins later, repeat step 2 for their auth user. To revoke,
 > `delete from public.admin_roles where user_id = (select id from auth.users
@@ -97,11 +115,10 @@ Returning admins who already enrolled skip straight to the code prompt.
 ## Changing admin credentials (anytime, no redeploy)
 
 There is **no default password** — credentials are whatever you set at
-bootstrap. All changes below are made from the Supabase dashboard's **SQL
-Editor** (or *Table Editor*) and take effect immediately; the admin panel never
-needs rebuilding. (These SQL methods always work regardless of dashboard
-version — the dashboard's *Authentication → Users* panel may also offer
-recovery-email actions, but only when the admin address is a real inbox.)
+bootstrap. Password changes go through the **Auth Admin API** (Supabase's own
+auth service hashes it — this is the only reliable method on the current
+platform; SQL-written hashes are ignored). Role changes are plain SQL. Nothing
+here requires rebuilding or redeploying the panel.
 
 > **Where "admin" lives:** the admin is an ordinary row under
 > *Authentication → Users* (e.g. `admin@yourdomain.com`). What makes that
@@ -110,19 +127,30 @@ recovery-email actions, but only when the admin address is a real inbox.)
 > Supabase dashboard — the admin panel itself is the Flutter web app in
 > `admin/` of this repo.
 
-- **Change the admin password (easiest).** Run in the SQL Editor with a strong
-  new password (existing TOTP enrollment is unaffected):
+- **Change the admin password (easiest).** One-time setup: copy your secret key
+  (`sb_secret_...` or the legacy `service_role` key) from *Project Settings →
+  API Keys*. Then either re-run the bootstrap script (it resets the password of
+  the given email), or call the Auth Admin API directly.
 
-  ```sql
-  update auth.users
-  set encrypted_password = crypt('NEW_PASSWORD', gen_salt('bf'))
-  where email = 'you@yourdomain.com';
+  PowerShell (Windows):
+
+  ```powershell
+  $headers = @{ "apikey" = "PASTE_SECRET_KEY"; "Authorization" = "Bearer PASTE_SECRET_KEY"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Method Put -Uri "https://YOUR-PROJECT.supabase.co/auth/v1/admin/users/ADMIN-USER-ID" -Headers $headers -Body '{"password":"NEW_PASSWORD"}'
   ```
 
-  Alternatives: the *Authentication → Users* recovery-email action (real inbox
-  required), or the Auth Admin API —
-  `PUT https://<ref>.supabase.co/auth/v1/admin/users/<user-id>` with header
-  `apikey: <sb_secret_...>` and body `{"password": "NEW_PASSWORD"}`.
+  curl (macOS / Linux):
+
+  ```bash
+  curl -X PUT "https://YOUR-PROJECT.supabase.co/auth/v1/admin/users/ADMIN-USER-ID" \
+    -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+    -H "Content-Type: application/json" -d '{"password":"NEW_PASSWORD"}'
+  ```
+
+  Find the `ADMIN-USER-ID` in *Authentication → Users* (click the user) or with
+  `select id from auth.users where email = 'you@yourdomain.com';` in the SQL
+  Editor. Existing TOTP enrollment is unaffected; the new password works on the
+  next sign-in.
 
 - **Promote another user to admin.** SQL Editor:
 
@@ -140,21 +168,25 @@ recovery-email actions, but only when the admin address is a real inbox.)
   );
   ```
 
-- **Lost the authenticator phone (TOTP).** Run in the SQL Editor — the next
-  sign-in prompts for MFA enrollment again with a fresh QR code. (Only do this
-  from a trusted session — it temporarily weakens the second gate.)
+- **Lost the authenticator phone (TOTP).** Delete the enrolled factor via the
+  Auth Admin API — the next sign-in prompts for enrollment again with a fresh
+  QR code. (Only do this from a trusted session — it temporarily weakens the
+  second gate.) First list the user's factors to get the factor id:
 
-  ```sql
-  delete from auth.mfa_factors
-  where user_id = (select id from auth.users where email = 'you@yourdomain.com');
+  ```bash
+  curl "https://YOUR-PROJECT.supabase.co/auth/v1/admin/users?per_page=100" \
+    -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY"
+  # find your user, note the factor "id" in its "factors" array, then:
+  curl -X DELETE "https://YOUR-PROJECT.supabase.co/auth/v1/admin/users/ADMIN-USER-ID/factors/FACTOR-ID" \
+    -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY"
   ```
 
 - **Reset everything at once.** Bootstrap a brand-new admin (steps above, or
   `scripts/bootstrap_admin.py`), sign in once to verify, then delete the old
   auth user from *Authentication → Users*.
 
-> Deleting a user from `auth.users` does **not** remove their `admin_roles`
-> row automatically; run the revoke SQL above as well.
+> Deleting a user from *Authentication → Users* does **not** remove their
+> `admin_roles` row automatically; run the revoke SQL above as well.
 
 ## Sections
 
@@ -183,6 +215,13 @@ point at the **same** project.
 
 ## Troubleshooting
 
+- **"Invalid login credentials" even though you set the password via SQL** →
+  SQL-written password hashes are ignored by the auth service. Use the Auth
+  Admin API method above (or the bootstrap script).
+- **User created via SQL cannot sign in at all** → the auth service does not
+  see rows inserted directly into `auth.users`. Delete the ghost row and create
+  the user through *Authentication → Users → Add user*, the Auth Admin API, or
+  the bootstrap script.
 - **"Not an administrator" screen** → the signed-in user is not in
   `admin_roles`. Run the bootstrap SQL above.
 - **Stuck on the code prompt** → the TOTP factor was never enrolled, or the
